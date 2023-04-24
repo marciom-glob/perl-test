@@ -6,6 +6,7 @@
 - DBD::SQLite
 - Text::CSV
 - Perl-Tk
+- LWP::Simple
 
 ## Description
 
@@ -26,7 +27,9 @@ The programs are:
 ## Using the system
 
 - Download the CSV file (https://data.sfgov.org/Economy-and-Community/Mobile-Food-Facility-Permit/rqzj-sfat/data)
-- Put the file in data directory
+'''
+perl down.pl
+'''
 - run loader.pl
 '''
 perl loader.pl
@@ -37,4 +40,8 @@ perl loader.pl
 perl interface.pl
 '''
 
+## Updates:
 
+2022-04-24:
+- More significant variable names
+- Creation of downloader program (down.pl)

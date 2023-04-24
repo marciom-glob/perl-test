@@ -30,12 +30,12 @@ if(-e $database){
   print "old database erased\n"
 }
 
-my $dsn = "DBI:SQLite:dbname=$database";
-my $dbh = DBI->connect($dsn, "", "", { RaiseError => 1 }) 
+my $database_connection_string = "DBI:SQLite:dbname=$database";
+my $database_connection = DBI->connect($database_connection_string, "", "", { RaiseError => 1 }) 
    or die $DBI::errstr;
 
 # Todo: make a better data analysis for better fields typing 
-my $sql_create = <<SQLEND;
+my $query_create = <<SQLEND;
 CREATE TABLE SHOPS
 (
   locationid  TEXT    NOT NULL,
@@ -70,74 +70,66 @@ CREATE TABLE SHOPS
 );
 SQLEND
 
-my $res = $dbh->do($sql_create);
+my $execution_result = $database_connection->do($query_create);
 
-if($res < 0){
+if($execution_result < 0){
   print $DBI::errstr;
 }
 
-my $csv = Text::CSV->new({ sep_char => ',' });
+my $csv_parser = Text::CSV->new({ sep_char => ',' });
 
-my $arq = 'data/Mobile_Food_Facility_Permit.csv';
-open(ARQ, $arq) or die "Can't open the file";
+my $input_file = 'data/data.csv';
+open(INPUT_FILE, $input_file) or die "Can't open the file";
 
-my $c = 1; # Line count
-my @cabec; # Fields from the CSV file
-my $nflds; # number of fields
-my $reg; # Pointer for the struct of the register (line)
-my @regs; # Array of Above pointers
-while(my $line = <ARQ>){
+my $line_counter = 1; # Line count
+my @field_names; # Fields from the CSV file
+my $number_fields; # number of fields
+my $register_pointer; # Pointer for the struct of the register (line)
+my @registers; # Array of Above pointers
+while(my $line = <INPUT_FILE>){
   chomp $line;
-  $csv->parse($line);
-  my @flds = $csv->fields();
-  if($c == 1){
-    $nflds = scalar @flds;
-    for(my $i=0; $i<$nflds; $i++){
-      $flds[$i] =~ s/[)]//g;
-      $flds[$i] =~ s/[ ()]/_/g;
+  $csv_parser->parse($line);
+  my @register_values = $csv_parser->fields();
+  if($line_counter == 1){
+    $number_fields = scalar @register_values;
+    for(my $i=0; $i<$number_fields; $i++){
+      $register_values[$i] =~ s/[)]//g;
+      $register_values[$i] =~ s/[ ()]/_/g;
     }
-    @cabec = @flds;
-    my @cabec_ret;
-    foreach my $cab(@cabec){
-      print "$cab\n"
-    } 
+    @field_names = @register_values;
   } else {
-    $reg = {};
-    for(my $i=0;$i<$nflds;$i++){
-      if ($flds[$i] =~ m/['"]/){
-        $flds[$i] =~ s/['"]/`/g;
-        print "$c ==> $flds[$i]\n"
+    $register_pointer = {};
+    for(my $i=0;$i<$number_fields;$i++){
+      if ($register_values[$i] =~ m/['"]/){
+        $register_values[$i] =~ s/['"]/`/g;
       }
-      $reg->{$cabec[$i]}=$flds[$i];
+      $register_pointer->{$field_names[$i]}=$register_values[$i];
     }
-    push @regs, $reg;
-    # print "$c ==>\n";	
-    foreach my $k (sort keys %$reg){
-      my $v = %$reg{$k};
-      # print "\t$k	TEXT    NOT NULL,
-    }
+    push @registers, $register_pointer;
   }
-  $c++;
+  $line_counter++;
 }
-close ARQ;
+close INPUT_FILE;
 
-foreach my $r(@regs){
-  my $s_flds = join(',', @cabec);
-  my $s_vals = '';
+foreach my $register(@registers){
+  my $string_field_names = join(',', @field_names);
+  my $string_field_values = '';
   print "----------------------------------------------------------------\n\n"; 
-  for my $k(@cabec){
-    my $val = %$r{$k};
-    if ($s_vals ne  ''){
-      $s_vals .= ','
+  for my $field_name(@field_names){
+    my $field_value = %$register{$field_name};
+    if ($string_field_values ne  ''){
+      $string_field_values .= ','
     }
-    $s_vals .= "'$val'";
+    $string_field_values .= "'$field_value'";
   }
-  my $sql_ins = <<SQLEND;
-  INSERT into SHOPS($s_flds) values ($s_vals);
+  my $query_ins = <<SQLEND;
+  INSERT into SHOPS($string_field_names) values ($string_field_values);
 SQLEND
-  print $sql_ins;
-  my $rv = $dbh->do($sql_ins) or die $DBI::errstr;
-  print "Inserted!\n"
+  #print $query_ins;
+  my $return_query_insert = $database_connection->do($query_ins) or die $DBI::errstr;
+  my $location_id = %$register{locationid};
+  my $applicant = %$register{Applicant};
+  print "($location_id ==> $applicant) Inserted!\n"
 }
 
 
